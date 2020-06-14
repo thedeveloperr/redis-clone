@@ -69,7 +69,11 @@ func (c *ConcurrentMap) Expire(key string, timeoutSeconds int) int {
 	c.mutex.Unlock()
 	time.AfterFunc(time.Duration(timeoutSeconds)*time.Second, func() {
 		c.mutex.Lock()
-		delete(c.data, key)
+
+		// Check if any SET option cleared timeout
+		if c.data[key].shouldExpire {
+			delete(c.data, key)
+		}
 		c.mutex.Unlock()
 	})
 	return 1
