@@ -15,8 +15,11 @@ type AOFPersistor struct {
 	ticker *time.Ticker
 }
 
-func FlushCommands(command string) error {
-	f, err := os.OpenFile("AOF.log",
+func FlushCommands(command string, filename string) error {
+	if filename == "" {
+		return nil
+	}
+	f, err := os.OpenFile(filename,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Println(err)
@@ -38,9 +41,9 @@ type InMemoryStore struct {
 	dataPersistor *AOFPersistor
 }
 
-func CreateInMemStore() *InMemoryStore {
+func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
 	dataPersistor := &AOFPersistor{
-		ticker: time.NewTicker(1 * time.Second),
+		ticker: time.NewTicker(time.Duration(persistAfter) * time.Second),
 		queue:  make(chan string, 1000),
 	}
 
@@ -48,7 +51,7 @@ func CreateInMemStore() *InMemoryStore {
 		for {
 			<-dataPersistor.ticker.C
 			for elem := range dataPersistor.queue {
-				err := FlushCommands(elem)
+				err := FlushCommands(elem, AOFfilename)
 				if err != nil {
 					log.Println(err)
 				}
@@ -78,7 +81,6 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 	case "GET":
 		return store.GET(key)
 	case "SET":
-		store.dataPersistor.queue <- command
 		result := store.SET(key, args[0][0])
 		if result == "OK" {
 			store.dataPersistor.queue <- command

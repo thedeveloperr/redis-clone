@@ -1,12 +1,70 @@
 package main
 
 import (
+	"bufio"
+	"log"
+	"os"
 	"testing"
 	"time"
 )
 
+func CreateTestDbSetup() *InMemoryStore {
+	AOFfilename := "" // pass empty string to not write to AOF for faster in mem. test
+	return CreateInMemStore(1, AOFfilename)
+}
+
+func TestAOFWrite(t *testing.T) {
+	AOFfilename := "AOF_test.log"
+	os.Remove(AOFfilename) // Remove if already exists
+	db := CreateInMemStore(1, AOFfilename)
+	db.ProcessCommand("SET k1 v1")
+	db.ProcessCommand("GET k1")
+	db.ProcessCommand("GET k1 v2")
+	db.ProcessCommand("SET k1 v2")
+	db.ProcessCommand("SET k2 v2")
+	db.ProcessCommand("GET k2")
+	db.ProcessCommand("GET k2")
+	db.ProcessCommand("GET k2")
+	db.ProcessCommand("ZADD z1 0 k1 2 k2")
+	db.ProcessCommand("ZADD z1 3 k1 2 k2")
+	db.ProcessCommand("ZADD z1 0 k3 2 k4")
+	db.ProcessCommand("ZRANK z1 k2")
+	db.ProcessCommand("ZRANGE z1 0 5")
+	time.Sleep(2 * time.Second) //give extra time to persist to make sure all data is flushed
+	expectedLines := [5]string{
+		"SET k1 v1",
+		"SET k1 v2",
+		"SET k2 v2",
+		"ZADD z1 0 k1 2 k2",
+		"ZADD z1 0 k3 2 k4",
+	}
+	file, err := os.Open(AOFfilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	i := 0
+	for scanner.Scan() {
+		if i > 4 {
+			t.Errorf("More lines logged")
+			break
+		}
+		result := scanner.Text()
+		if result != expectedLines[i] {
+			t.Errorf("Expected: " + expectedLines[i] + "\n.Got result:" + result)
+		}
+		i++
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func TestSETCommand(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "SET k1 v1"
 	result := db.ProcessCommand(command)
 	if result != "OK" {
@@ -27,7 +85,7 @@ func TestSETCommand(t *testing.T) {
 }
 
 func TestSETGETCommand(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "SET k1 v1"
 	result := db.ProcessCommand(command)
 	if result != "OK" {
@@ -72,7 +130,7 @@ func TestSETGETCommand(t *testing.T) {
 }
 
 func Test_SET_EXPIRE_GET_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "SET k1 v1"
 	result := db.ProcessCommand(command)
 	if result != "OK" {
@@ -118,7 +176,7 @@ func Test_SET_EXPIRE_GET_Command(t *testing.T) {
 }
 
 func Test_ZADD_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "ZADD k1 0.1 m1"
 	result := db.ProcessCommand(command)
 	if result != "1" {
@@ -145,7 +203,7 @@ func Test_ZADD_Command(t *testing.T) {
 }
 
 func Test_EXPIRE_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "ZADD k1 0.1 m1"
 	result := db.ProcessCommand(command)
 	if result != "1" {
@@ -179,7 +237,7 @@ func Test_EXPIRE_Command(t *testing.T) {
 }
 
 func Test_ZRANK_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "ZADD k1 0.1 m1"
 
 	db.ProcessCommand(command)
@@ -242,7 +300,7 @@ func Test_ZRANK_Command(t *testing.T) {
 }
 
 func Test_ZRANGE_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "ZADD k1 0.1 m1"
 	db.ProcessCommand(command)
 
@@ -282,7 +340,7 @@ func Test_ZRANGE_Command(t *testing.T) {
 }
 
 func Test_ZRANGE_WITHSCORE_Command(t *testing.T) {
-	db := CreateInMemStore()
+	db := CreateTestDbSetup()
 	command := "ZADD k1 0.1 m1"
 	db.ProcessCommand(command)
 

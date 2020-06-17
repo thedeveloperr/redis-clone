@@ -29,7 +29,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	inMemoryDb = CreateInMemStore()
+	inMemoryDb = CreateInMemStore(5, "AOF.log")
 	http.HandleFunc("/", handler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
