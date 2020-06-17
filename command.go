@@ -11,6 +11,9 @@ type Command struct {
 
 func (c Command) parse() (commandType string, key string, parsedArguments [][2]string) {
 	commandComponents := strings.Fields(c.fullText)
+	if len(commandComponents) == 0 {
+		return
+	}
 	if commandComponents[0] == "GET" && len(commandComponents) == 2 {
 		commandType = "GET"
 		key = commandComponents[1]
