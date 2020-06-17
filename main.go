@@ -31,5 +31,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	inMemoryDb = CreateInMemStore(5, "AOF.log")
 	http.HandleFunc("/", handler)
+	fmt.Println("Server starting at at http://localhost:8080/ use ctrl+c to stop.\n" +
+		"You can send commads as x-www-form-urlencoded POST request key value eg. 'command=SET k1 v1' \n" +
+		"Eg.:\n\ncurl -d 'command=SET edtech=awesome' http://localhost:8080/\n\n ")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
