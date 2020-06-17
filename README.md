@@ -1,8 +1,8 @@
 # Redis clone.
 
 ## Steps to run
-1. Install go version 1.14
-2. Clone the repo.
+1. Install go version 1.14 You can see here how to install: https://golang.org/doc/install
+2. Clone the repo. `git clone git@github.com:thedeveloperr/redis-clone.git`  or  `git clone https://github.com/thedeveloperr/redis-clone.git`
 3. In the root directory run:
    ```go run ./```
 4. On Mac if any popup asking for "Do you want the application “redis-clone” to accept incoming network connections?" click Yes
