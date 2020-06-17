@@ -2,17 +2,21 @@
 
 ## Steps to run
 1. Install go version 1.14 You can see here how to install: https://golang.org/doc/install
-2. Clone the repo. `git clone git@github.com:thedeveloperr/redis-clone.git`  or  `git clone https://github.com/thedeveloperr/redis-clone.git`
+2. Clone the repo.
+   - `git clone git@github.com:thedeveloperr/redis-clone.git`  
+   - or  `git clone https://github.com/thedeveloperr/redis-clone.git`
 3. In the root directory run:
-   ```go run ./```
+   - `go run ./`
 4. On Mac if any popup asking for "Do you want the application “redis-clone” to accept incoming network connections?" click Yes
 5. Server will start running at ```http://localhost:8080/```
 
 
 ## Steps to run commands
 1. HTTP posts are used to send commands to the server
-2. Eg. Copy and paste the following command while server is running `curl -d "command=SET edtech=awesome" http://localhost:8080/`
-3. Similarly run other commands just pass the commands as POST data `command=GET edtech` that is: `curl -d "command=GET edtech" http://localhost:8080/` 
+2. Eg. Copy and paste the following command while server is running 
+   - `curl -d "command=SET edtech=awesome" http://localhost:8080/`
+3. Similarly run other commands just pass the commands as POST data `command=GET edtech` that is: 
+   - `curl -d "command=GET edtech" http://localhost:8080/` 
 4. You can close the server too and rerun the program and send the HTTP command GET edtech again to see the last set valued. This is done by simulating redis's `Append Only File Persistance` technique.
 
 ## Steps to run test
