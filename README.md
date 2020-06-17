@@ -12,13 +12,15 @@
 
 
 ## Steps to run commands
-1. HTTP posts are used to send commands to the server.
-2. Eg. Copy and paste the following command run this command in a **seperate terminal** while main server is still running 
+1. HTTP posts are used to send commands to the server. You can use curl or any http client like postman, etc. to send POST request.
+2. If you want to try through terminal. Open a new terminal window, while terminal in which server is still running is open in background.
+3. Eg. Copy and paste the following command run this command in a **seperate terminal** while main server is still running 
    - `curl -d "command=SET edtech=awesome" http://localhost:8080/`
-3. Similarly run other commands just pass the commands as POST data `command=GET edtech` that is: 
+4. Similarly run other commands just pass the commands as POST data `command=GET edtech` that is: 
    - `curl -d "command=GET edtech" http://localhost:8080/` 
-4. You can close the server too and rerun the program and send the HTTP command `GET edtech` via post req. again to see the last set valued. This is done by simulating redis's `Append Only File Persistance` technique.
+5. You can close the server too and rerun the program and send the HTTP command `GET edtech` via post req. again to see the last set valued. This is done by simulating redis's `Append Only File Persistance` technique.
 
+Contact me in case of any doubt or problem. 
 
 ## Steps to run test
 1. Go to the root of repo.
