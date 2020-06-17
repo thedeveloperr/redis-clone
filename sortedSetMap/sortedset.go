@@ -1,4 +1,4 @@
-package sortedset
+package sortedSetMap
 
 import (
 	"math/rand"
@@ -234,7 +234,7 @@ func (list *Skiplist) GetMembersAndScoreInRange(posStart int64, posEnd int64) (m
 
 type SortedsetMap interface {
 	GetRank(key string, member string) uint64
-	Add(key string, member string, score float64)
+	Add(key string, member string, score float64) int
 	GetMembersAndScoreInRange(key string, start int64, end int64) ([]string, []float64)
 	Expire(key string, timeoutSeconds int) int
 }
