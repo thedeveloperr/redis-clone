@@ -4,18 +4,61 @@ import (
 	"fmt"
 	"github.com/thedeveloperr/redis-clone/hashmap"
 	"github.com/thedeveloperr/redis-clone/sortedSetMap"
+	"log"
+	"os"
 	"strconv"
+	"time"
 )
 
+type AOFPersistor struct {
+	queue  chan string
+	ticker *time.Ticker
+}
+
+func FlushCommands(command string) error {
+	f, err := os.OpenFile("AOF.log",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(command + "\n"); err != nil {
+		return err
+	}
+	return f.Sync()
+}
+
 type InMemoryStore struct {
-	sortedSet *sortedSetMap.ConcurrentSortedsetMap
-	hashmap   *hashmap.ConcurrentMap
+	sortedSet     *sortedSetMap.ConcurrentSortedsetMap
+	hashmap       *hashmap.ConcurrentMap
+	dataPersistor *AOFPersistor
 }
 
 func CreateInMemStore() *InMemoryStore {
+	dataPersistor := &AOFPersistor{
+		ticker: time.NewTicker(1 * time.Second),
+		queue:  make(chan string, 1000),
+	}
+
+	go func() {
+		for {
+			<-dataPersistor.ticker.C
+			for elem := range dataPersistor.queue {
+				err := FlushCommands(elem)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
+	}()
 	return &InMemoryStore{
-		sortedSet: sortedSetMap.Create(),
-		hashmap:   hashmap.Create(),
+		sortedSet:     sortedSetMap.Create(),
+		hashmap:       hashmap.Create(),
+		dataPersistor: dataPersistor,
 	}
 }
 
@@ -27,11 +70,20 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 	switch commType {
 	case "EXPIRE":
 		ttl, _ := strconv.ParseInt(args[0][0], 10, 32)
-		return store.EXPIRE(key, int(ttl))
+		result := store.EXPIRE(key, int(ttl))
+		if result != "0" {
+			store.dataPersistor.queue <- command
+		}
+		return result
 	case "GET":
 		return store.GET(key)
 	case "SET":
-		return store.SET(key, args[0][0])
+		store.dataPersistor.queue <- command
+		result := store.SET(key, args[0][0])
+		if result == "OK" {
+			store.dataPersistor.queue <- command
+		}
+		return result
 	case "ZRANGE":
 		if len(args) == 2 {
 			start, _ := strconv.ParseInt(args[0][0], 10, 64)
@@ -75,7 +127,11 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 			score, _ := strconv.ParseFloat(args[i][0], 64)
 			added += store.ZADD(key, score, args[i][1])
 		}
-		return fmt.Sprintf("%d", added)
+		if added > 0 {
+			store.dataPersistor.queue <- command
+		}
+		result := fmt.Sprintf("%d", added)
+		return result
 	}
 	return "COMMAND NOT VALID"
 }
