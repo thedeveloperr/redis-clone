@@ -11,11 +11,15 @@ import (
 	"time"
 )
 
+// Struct for handling of appending commands to AOF file
 type AOFPersistor struct {
 	queue  chan string
 	ticker *time.Ticker
 }
 
+// Append string commands to the file with given filename
+// runs fsync to make sure data reaches hard disk and reduce
+// chance of data loss.
 func FlushCommands(command string, filename string) error {
 	if filename == "" {
 		return nil
@@ -36,12 +40,16 @@ func FlushCommands(command string, filename string) error {
 	return f.Sync()
 }
 
+// Struct for the main In Memory db
 type InMemoryStore struct {
 	sortedSet     *sortedSetMap.ConcurrentSortedsetMap
 	hashmap       *hashmap.ConcurrentMap
 	dataPersistor *AOFPersistor
 }
 
+// First load all the data in AOF file if exists in memory
+// Attach the AOF persistor to the in memory db so as to append future write
+// commands
 func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
 
 	db := &InMemoryStore{
@@ -66,11 +74,16 @@ func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
 			}
 		}
 	}
+
 	dataPersistor := &AOFPersistor{
 		ticker: time.NewTicker(time.Duration(persistAfter) * time.Second),
 		queue:  make(chan string, 1000),
 	}
 	db.dataPersistor = dataPersistor
+
+	// Runs every given amount of seconds
+	// If the commands are there in buffered channel
+	// consume them and write them.
 	go func() {
 		for {
 			<-db.dataPersistor.ticker.C
@@ -86,6 +99,8 @@ func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
 	return db
 }
 
+// Client's command is sent here, parsed and appropriate methods
+// on hashmap and Ordered Set Map are called.
 func (store *InMemoryStore) ProcessCommand(command string) string {
 	comm := Command{
 		fullText: command,
@@ -159,6 +174,7 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 	return "COMMAND NOT VALID"
 }
 
+// Gets value of key if set otherwise (nil)
 func (store *InMemoryStore) GET(key string) string {
 	if val, exists := store.hashmap.Get(key); exists {
 		return val
@@ -166,25 +182,30 @@ func (store *InMemoryStore) GET(key string) string {
 	return "(nil)"
 }
 
+// Sets value of key returns "OK" if successful
 func (store *InMemoryStore) SET(key string, value string) string {
 	store.hashmap.Set(key, value)
 	return "OK"
 }
 
+// Perform ZADD and Inserts a member element with a given score in sorted set backed by Skiplist and Hasmap
 func (store *InMemoryStore) ZADD(key string, score float64, member string) int {
 	return store.sortedSet.Add(key, member, score)
 }
 
+// Gets the members and Scores stored in Sorted Set within given range. Perform ZRANGE key start end WITHSCORES command
 func (store *InMemoryStore) ZRANGE_WITHSCR(key string, start int64, end int64) (members []string, scores []float64) {
 	members, scores = store.sortedSet.GetMembersAndScoreInRange(key, start, end)
 	return
 }
 
+// Gets the members stored in Sorted Set within given range. Perform ZRANGE key start end command
 func (store *InMemoryStore) ZRANGE(key string, start int64, end int64) (members []string) {
 	members, _ = store.sortedSet.GetMembersAndScoreInRange(key, start, end)
 	return
 }
 
+// Gets position of member inside sorted set. Perform ZRANK. It's 0 index based
 func (store *InMemoryStore) ZRANK(key string, member string) string {
 	if rank, exists := store.sortedSet.GetRank(key, member); exists {
 		return fmt.Sprintf("%d", rank)
@@ -192,6 +213,7 @@ func (store *InMemoryStore) ZRANK(key string, member string) string {
 	return "(nil)"
 }
 
+// Expire and remove key after some given ttl seconds. Perform EXPIRE key ttl command
 func (store *InMemoryStore) EXPIRE(key string, ttl int) string {
 	canExpire := store.hashmap.Expire(key, ttl)
 	if canExpire == 1 {
