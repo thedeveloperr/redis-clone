@@ -4,9 +4,9 @@
 1. Install go version 1.14
 2. Clone the repo.
 3. In the root directory run:
-   `go run ./`
+   ```go run ./```
 4. On Mac if any popup asking for "Do you want the application “redis-clone” to accept incoming network connections?" click Yes
-5. Server will start running at `http://localhost:8080/`
+5. Server will start running at ```http://localhost:8080/```
 
 
 ## Steps to run commands
@@ -19,11 +19,19 @@
 1. Go to the root of repo.
 2. Run `go test`.
 
-### Langauge chosen
-1. Why Golang ?
+## NOTE:
+- Don't delete AOF_test_read.log as it's req. for automated testing.
+
+## Code base overview
+- Written in wiki: https://github.com/thedeveloperr/redis-clone/wiki
+
+
+## Decisions
+
+### Why Golang ?
    Golang: It's a type safe compiled language with first class support for concurrency. Easy concurrency via goroutines. Low memory footprint and less verbose than Java. Concurrency can improve throughput. Golang seemed right tool for job.
 
-2. What are the further improvements that can be made to make it efficient ?
+### What are the further improvements that can be made to make it efficient ?
   Future Improvements:-
   - Right now AOF file persistance (similar to what redis does) is rudimentary and can grow large as it's append only. So will need to add some techniques to rewrite AOF just like redis do once the file reaches certain size.
   - Many commands are missing and only following commands are there:
@@ -33,14 +41,14 @@
   - Concurrency for Data structures like SkipList used in ordered set can be further improved by sharding/bucketing the write request and locking that bucket only to reduce lock contention when a write is happening.
 
 
-3. Data structures used and why?
+### Data structures used and why?
   - Thread safe Hashmap: For basic operations like GET SET and for maintaining inner mapping of score and members in ordered set. Also making sure key already exists or not efficiently.
     * All these things can be done in Avg. O(1) time.
     * Golang doesn't have a map which provide thread safety for both read and write (sync.Map is optimised for Read and suffers on repeated write). Used sync.RWMutex to implement thread safe Map.
   - Thread safe Skiplist: SortedSet etc. are usually implemented using LinkedList or BalancedTrees etc. but to make Insert (ZADD), and Query (ZRANGE and ZRANK) happens in order O(log(N)) a different datastructre is needed.
   - Skiplist does Insert, Search etc. All in avg. O(log(N))
 
-4. Does it supports multithreading ?
+### Does it supports multithreading ?
  - Supports Multithreading via Goroutines. Used thread safe data structures via RWMutex as it [solves Reader Writer Problem](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock). 
  - For better Concurrent Reading.
  - Write on Hashmap Doesn't block write or read on Sorted Set and vice verca. Eg. ZADD doesn't blocks GET or SET.
