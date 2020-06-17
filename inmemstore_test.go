@@ -63,6 +63,28 @@ func TestAOFWrite(t *testing.T) {
 	}
 }
 
+func TestAOFRead(t *testing.T) {
+	AOFfilename := "AOF_test_read.log"
+	db := CreateInMemStore(1, AOFfilename)
+	result := db.ProcessCommand("GET k1")
+	if result != "v2" {
+		t.Errorf("Expected: v2\nGot: " + result)
+	}
+	result = db.ProcessCommand("GET k2")
+	if result != "v2" {
+		t.Errorf("Expected: v2\nGot: " + result)
+	}
+	result = db.ProcessCommand("ZRANK z1 k2")
+	if result != "2" {
+		t.Errorf("Expected: 2\nGot: " + result)
+	}
+	result = db.ProcessCommand("ZRANGE z1 0 5")
+	expected := "1) 'k1'\n2) 'k3'\n3) 'k2'\n4) 'k4'\n"
+	if result != expected {
+		t.Errorf("Expected: " + expected + "\nGot: " + result)
+	}
+
+}
 func TestSETCommand(t *testing.T) {
 	db := CreateTestDbSetup()
 	command := "SET k1 v1"

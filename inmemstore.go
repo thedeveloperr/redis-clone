@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/thedeveloperr/redis-clone/hashmap"
 	"github.com/thedeveloperr/redis-clone/sortedSetMap"
@@ -42,15 +43,38 @@ type InMemoryStore struct {
 }
 
 func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
+
+	db := &InMemoryStore{
+		sortedSet:     sortedSetMap.Create(),
+		hashmap:       hashmap.Create(),
+		dataPersistor: nil,
+	}
+
+	if AOFfilename != "" {
+		file, err := os.Open(AOFfilename)
+		if err == nil {
+
+			defer file.Close()
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				db.ProcessCommand(scanner.Text())
+			}
+
+			if err := scanner.Err(); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	dataPersistor := &AOFPersistor{
 		ticker: time.NewTicker(time.Duration(persistAfter) * time.Second),
 		queue:  make(chan string, 1000),
 	}
-
+	db.dataPersistor = dataPersistor
 	go func() {
 		for {
-			<-dataPersistor.ticker.C
-			for elem := range dataPersistor.queue {
+			<-db.dataPersistor.ticker.C
+			for elem := range db.dataPersistor.queue {
 				err := FlushCommands(elem, AOFfilename)
 				if err != nil {
 					log.Println(err)
@@ -58,11 +82,8 @@ func CreateInMemStore(persistAfter int, AOFfilename string) *InMemoryStore {
 			}
 		}
 	}()
-	return &InMemoryStore{
-		sortedSet:     sortedSetMap.Create(),
-		hashmap:       hashmap.Create(),
-		dataPersistor: dataPersistor,
-	}
+
+	return db
 }
 
 func (store *InMemoryStore) ProcessCommand(command string) string {
@@ -74,7 +95,7 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 	case "EXPIRE":
 		ttl, _ := strconv.ParseInt(args[0][0], 10, 32)
 		result := store.EXPIRE(key, int(ttl))
-		if result != "0" {
+		if result != "0" && store.dataPersistor != nil {
 			store.dataPersistor.queue <- command
 		}
 		return result
@@ -82,7 +103,7 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 		return store.GET(key)
 	case "SET":
 		result := store.SET(key, args[0][0])
-		if result == "OK" {
+		if result == "OK" && store.dataPersistor != nil {
 			store.dataPersistor.queue <- command
 		}
 		return result
@@ -129,7 +150,7 @@ func (store *InMemoryStore) ProcessCommand(command string) string {
 			score, _ := strconv.ParseFloat(args[i][0], 64)
 			added += store.ZADD(key, score, args[i][1])
 		}
-		if added > 0 {
+		if added > 0 && store.dataPersistor != nil {
 			store.dataPersistor.queue <- command
 		}
 		result := fmt.Sprintf("%d", added)

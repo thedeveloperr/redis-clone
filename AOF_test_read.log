@@ -1,0 +1,5 @@
+SET k1 v1
+SET k1 v2
+SET k2 v2
+ZADD z1 0 k1 2 k2
+ZADD z1 0 k3 2 k4
